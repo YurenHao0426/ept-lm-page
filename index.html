@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow, noarchive">
+<title>Training Transformer Language Models Without Backpropagation</title>
+<style>
+  :root { --ink:#1a1a1a; --muted:#555; --accent:#8a1f1f; --rule:#e5e0d8; --bg:#faf8f4; }
+  html { background: var(--bg); }
+  body { max-width: 780px; margin: 0 auto; padding: 48px 20px 80px;
+         font: 17px/1.65 Georgia, 'Times New Roman', serif; color: var(--ink); }
+  h1 { font-size: 34px; line-height: 1.25; margin: 8px 0 10px; letter-spacing: -0.3px; }
+  .sub { font-size: 19px; color: var(--muted); margin-bottom: 18px; }
+  .authors { color: var(--muted); margin: 6px 0 4px; }
+  .links { margin: 18px 0 8px; }
+  .links a, .links span { display: inline-block; border: 1px solid var(--ink); border-radius: 20px;
+        padding: 4px 16px; margin: 0 6px 8px 0; font-family: Helvetica, Arial, sans-serif;
+        font-size: 14px; text-decoration: none; color: var(--ink); }
+  .links span { color: #999; border-color: #ccc; }
+  h2 { font-size: 22px; margin: 40px 0 10px; border-bottom: 2px solid var(--rule); padding-bottom: 6px; }
+  .tldr li { margin: 9px 0; }
+  b.k { color: var(--accent); }
+  table { border-collapse: collapse; width: 100%; margin: 14px 0; font-size: 15.5px; }
+  th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--rule); }
+  th { font-family: Helvetica, Arial, sans-serif; font-size: 13px; text-transform: uppercase;
+       letter-spacing: 0.04em; color: var(--muted); }
+  .note { font-size: 14.5px; color: var(--muted); }
+  .rule-claim { background: #f3efe7; border-left: 4px solid var(--accent); padding: 12px 16px; margin: 18px 0; }
+  code, pre { font: 13.5px/1.5 ui-monospace, 'SF Mono', Menlo, monospace; }
+  pre { background: #f3efe7; padding: 14px 16px; overflow-x: auto; border-radius: 6px; }
+  footer { margin-top: 60px; font-size: 13.5px; color: var(--muted); border-top: 1px solid var(--rule); padding-top: 14px; }
+</style>
+</head>
+<body>
+
+<h1>Training Transformer Language Models Without Backpropagation</h1>
+<div class="sub">Standard LLMs, trained end-to-end by Equilibrium Propagation &mdash; with matched backprop controls at every scale, and every design choice made under analog-hardware constraints.</div>
+
+<div class="authors">Author list forthcoming &middot; University of Illinois Urbana-Champaign</div>
+<div class="links">
+  <span>Paper — in preparation</span>
+  <span>Code — on request</span>
+  <span>Training curves — on request</span>
+</div>
+
+<h2>TL;DR</h2>
+<ul class="tldr">
+  <li><b class="k">The largest models ever trained from scratch without backpropagation at any level.</b>
+      Every parameter update follows the Equilibrium Propagation (EP) rule; no layer, block, or output head
+      is trained with a backprop rule. Our models are standard transformer LMs (OLMo2-style blocks,
+      32k-token vocabulary, FineWeb-Edu) &mdash; the trained network runs ordinary forward inference.</li>
+  <li><b class="k">Matches backprop within a 4&ndash;5% perplexity band at 72M parameters</b>, against a
+      backprop twin trained on identical data, steps, and optimizer &mdash; with multi-seed controls on both sides.</li>
+  <li><b class="k">First transformer language model in the EP family, and 2.15&times; the size of the
+      largest prior EP-family result</b> (VGG10 image classifier, &sim;63M params, Kerjan&ndash;H&oslash;ier&ndash;Scellier 2026):
+      models trained up to <b>135M</b> parameters on 2.7B tokens.</li>
+  <li><b class="k">2&times; wall-clock overhead versus backprop &mdash; where the closest prior EP work pays
+      6.7&ndash;12&times;.</b> One nudged phase and 3 relaxation sweeps per step versus their two phases &times; 10
+      iterations: 6.7&times; fewer relaxation iterations per step.</li>
+  <li><b class="k">Verified gradient fidelity, not alignment by luck:</b> the EP update maintains cosine
+      &asymp;0.99 to the true backprop gradient throughout training &mdash; measured, at scale. Prior non-backprop
+      transformer results at larger sizes train most parameters with <i>local backprop inside blocks</i>;
+      ours use none.</li>
+  <li><b class="k">Hardware-ready by measurement, not assumption:</b> 8-bit weight/compute quantization shows
+      <i>no EP-specific penalty</i> against an equally-quantized backprop twin; under injected analog faults
+      (1% forward noise, 10% error-channel noise, device-tolerance mismatch) the EP estimator tracks the
+      faulted network at cosine &asymp;0.97 &mdash; learning co-adapts to the hardware.</li>
+</ul>
+
+<h2>Why this matters</h2>
+<p>Analog and physical accelerators promise order-of-magnitude energy savings for training, but they cannot
+run backpropagation natively: exact gradients on a physical substrate require either per-step digitization
+or a second, adjoint copy of the hardware. Equilibrium Propagation extracts gradients from the physics
+itself &mdash; two relaxations and local reads &mdash; and is the only member of its family with a
+gradient-equivalence guarantee we can verify at scale. The missing evidence has always been scale and
+rigor: EP results stopped at mid-size vision models, without matched controls. This project supplies both,
+on the model class that matters commercially: language models.</p>
+
+<div class="rule-claim">
+<b>The claim we defend:</b> a standard transformer LM can be trained to backprop-class quality with a
+physics-compatible learning rule, at 2&times; backprop wall-clock in simulation &mdash; and the constraints that
+matter for analog hardware (quantization, noise, nudge operating windows, energy) are measured quantities
+in our stack, not assumptions.
+</div>
+
+<h2>Headline results</h2>
+<table>
+  <tr><th>Model</th><th>Data</th><th>EP (val CE)</th><th>BP twin</th><th>Gap</th></tr>
+  <tr><td>72M transformer LM</td><td>FineWeb-Edu, 1.4B tokens</td><td>3.33</td><td>3.29</td>
+      <td>+4&ndash;5% ppl</td></tr>
+  <tr><td>135M transformer LM</td><td>FineWeb-Edu, 2.7B tokens</td><td colspan="3">trained end-to-end, zero
+      instability events; scaling analysis below</td></tr>
+</table>
+<p class="note">Twin discipline: identical architecture, tokenizer, data order, optimizer (Muon hybrid),
+steps, and evaluation; multi-seed on both sides (BP n=3, band &plusmn;0.006; EP n=2). Comparison row uses the
+sealed flagship pair.</p>
+
+<table>
+  <tr><th>Cost vs backprop (wall-clock)</th><th>This work</th><th>Closest EP work (ImageNet VGG10)</th></tr>
+  <tr><td>Training overhead</td><td><b>2.0&times;</b></td><td>6.7&times; (single-sided) / 12&times; (centered)</td></tr>
+  <tr><td>Relaxation iterations / step</td><td><b>3</b> (one phase)</td><td>20 (two phases &times; 10)</td></tr>
+</table>
+
+<h2>The scaling science</h2>
+<p>Scaling a physical learning rule surfaces phenomena backprop never meets. Between 72M (width 512) and
+135M (width 768) we identified a width-scaling loss in the EP gradient &mdash; localized to the top half of
+the network, invisible to every per-step alignment metric, and traced to response components that finite
+nudge displacement under-reaches. We built a screening instrument that measures this leak in 90 minutes
+per candidate recipe, mapped its dose&ndash;response law, and demonstrated a pure estimator-side treatment
+that recovers 97% of it without touching the model, its inference path, or the cost budget. Full-schedule
+validation of the treated recipe is running now; the same instruments give the go/no-go protocol for each
+next rung of the ladder (300M &rarr; 1B).</p>
+
+<h2>Hardware line</h2>
+<ul>
+  <li>Measured energy projection for an integrated weight-stationary realization: <b>0.21&ndash;0.63 pJ/MAC</b>
+      (SPICE-measured analog core + datasheet periphery), against a 0.3&ndash;1 pJ/MAC digital INT8 system envelope.</li>
+  <li>Single-column analog prototype: SPICE-modeled, discrete multiplying-DAC parts list &mdash; deliberately
+      kept at the &ldquo;hardware someone can actually build&rdquo; level.</li>
+  <li>Nudge-amplitude operating windows and their evolution over training are mapped &mdash; the dynamic-range
+      spec an analog implementation must meet.</li>
+</ul>
+
+<h2>Roadmap</h2>
+<p>Staged scaling with matched BP controls and hardware-relevant ablations at every rung: 150M&ndash;600M
+scaling ladder (does the gap grow or shrink with scale &mdash; measured, not assumed), then 1B&ndash;3B.
+Each stage is gated on the previous stage&rsquo;s loss, alignment, and throughput numbers. In parallel: the
+algorithm&rarr;regime map across the activity-difference family (contrastive / coupled-learning arms on the
+same harness), and the single-column hardware feasibility study.</p>
+
+<h2>BibTeX</h2>
+<pre>@misc{ept2026,
+  title  = {Training Transformer Language Models Without Backpropagation},
+  author = {(author list forthcoming)},
+  year   = {2026},
+  note   = {Project page}
+}</pre>
+
+<footer>
+Contact: yurenh2@illinois.edu &middot; This page is intentionally excluded from search indexing while the
+work is under review. Numbers on this page correspond to sealed experiment records with matched controls;
+the technical report contains the full protocol.
+</footer>
+
+</body>
+</html>

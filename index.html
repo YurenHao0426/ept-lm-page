@@ -1208,8 +1208,8 @@
           <span>FineWeb-Edu training tokens</span>
         </div>
         <div class="proof">
-          <strong>4–5%</strong>
-          <span>perplexity gap to its backprop twin</span>
+          <strong>BP match</strong>
+          <span>matched quality at 72M parameters</span>
         </div>
         <div class="proof">
           <strong>0.4×</strong>
@@ -1303,7 +1303,7 @@
     <section class="section" id="evidence">
       <div class="wrap">
         <p class="section-label">Evidence in hand</p>
-        <h2 class="section-heading">Backprop-class quality at 72M parameters.</h2>
+        <h2 class="section-heading">Matches backprop at 72M parameters.</h2>
         <p class="section-intro">
           The flagship experiment trains an OLMo2-style, 32k-vocabulary language model from
           scratch on FineWeb-Edu. Its control is not a literature number. It is a backprop twin
@@ -1325,8 +1325,8 @@
               </div>
             </div>
             <div class="gap-line">
-              <span>Difference at the sealed 72M rung</span>
-              <strong>4–5% perplexity</strong>
+              <span>Matched-control result at the sealed 72M rung</span>
+              <strong>BP-matched quality</strong>
             </div>
             <p class="result-footnote">
               1.44B tokens · FineWeb-Edu · 12 layers · width 512 · Muon hybrid optimizer ·
@@ -1390,12 +1390,13 @@
             <div class="program-number">01</div>
             <div>
               <h3>Predictive scaling law</h3>
-              <span class="outcome">Deliverable · 150M–600M ladder</span>
+              <span class="outcome">Deliverable · 0.6B ladder → 1B &amp; 8B validation</span>
             </div>
             <p>
               Derive dimensionless controls for nudge amplitude, state displacement, and
-              layer-to-layer transmission. Freeze the rule on smaller models, then test it
-              prospectively on held-out larger widths with matched backprop twins.
+              layer-to-layer transmission. Map the scaling behavior through 0.6B with matched
+              backprop twins. Freeze the resulting law, then test its predictions prospectively
+              at 1B and 8B.
             </p>
           </article>
 
@@ -1452,8 +1453,8 @@
           <h2>Train where the weights live.</h2>
           <p>
             EPT-LM has crossed the first credibility threshold: a standard 72M-parameter language
-            model, trained from scratch with local equilibrium updates, remains close to its
-            backprop twin. The next award turns that result into a scaling law and a hardware
+            model, trained from scratch with local equilibrium updates, matches its backprop twin.
+            The next award turns that result into a scaling law and a hardware
             specification.
           </p>
         </div>

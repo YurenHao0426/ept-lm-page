@@ -198,7 +198,7 @@
             <li><b>Verified gradient fidelity:</b> the EP update maintains cosine &asymp;0.99 to the true backprop
               gradient throughout training: measured, at scale. Larger non-backprop transformers in the
               literature train most parameters with <i>local backprop inside blocks</i>; ours use none.</li>
-            <li><b>Hardware-ready by measurement, not assumption:</b> 8-bit quantization shows no EP-specific
+            <li><b>Hardware compatible, with measurements to show it:</b> 8-bit quantization shows no EP-specific
               penalty against an equally-quantized backprop twin; under injected analog faults (1% forward noise,
               10% error-channel noise, device-tolerance mismatch) the EP estimator tracks the faulted network at
               cosine &asymp;0.97: learning co-adapts to the hardware.</li>
@@ -302,7 +302,7 @@
         <h2 class="title is-3">Roadmap</h2>
         <div class="content has-text-justified">
           <p>Staged scaling with matched BP controls and hardware-relevant ablations at every rung: a 150M-600M
-          ladder (does the gap grow or shrink with scale: measured, not assumed), then 1B-3B; each stage
+          ladder (the gap is measured against a backprop twin at every rung), then 1B-3B; each stage
           gated on the previous stage&rsquo;s loss, alignment, and throughput numbers. In parallel: the
           algorithm&rarr;regime map across the activity-difference family (contrastive / coupled-learning arms on
           the same harness), and a bounded single-column hardware feasibility study.</p>

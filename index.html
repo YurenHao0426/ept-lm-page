@@ -392,6 +392,12 @@
       font-weight: 520;
     }
 
+    .state p {
+      margin: 5px 0 0;
+      color: rgba(255, 255, 255, 0.58);
+      font-size: 11px;
+    }
+
     .difference {
       align-self: center;
       color: var(--signal);
@@ -571,6 +577,32 @@
       color: rgba(255, 255, 255, 0.68);
       font-size: 14px;
       line-height: 1.65;
+    }
+
+    .method-grid.comparison-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    .comparison-grid .method-step {
+      min-height: 340px;
+    }
+
+    .method-sequence {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 28px;
+      color: var(--aqua);
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    .method-sequence i {
+      width: 18px;
+      height: 1px;
+      background: currentColor;
     }
 
     .method-note {
@@ -949,6 +981,10 @@
         grid-template-columns: 1fr;
       }
 
+      .method-grid.comparison-grid {
+        grid-template-columns: 1fr;
+      }
+
       .method-step,
       .method-step:last-child {
         min-height: auto;
@@ -1030,7 +1066,6 @@
       }
 
       .difference {
-        transform: rotate(90deg);
         text-align: center;
       }
 
@@ -1137,8 +1172,8 @@
           <h1>Language models that learn by settling.</h1>
           <p class="hero-lede">
             EPT-LM is a practical route to train standard Transformer language models without a
-            global backward pass. During training, a small physical nudge turns local state
-            differences into weight updates. At inference, the model is an ordinary Transformer.
+            global backward pass. We gently tug the output toward the correct next token; each
+            layer learns from its own response. At inference, the model is an ordinary Transformer.
           </p>
           <div class="hero-actions">
             <a class="button button-primary" href="#evidence">See the evidence</a>
@@ -1150,16 +1185,16 @@
           </p>
         </div>
 
-        <div class="system-card" role="img" aria-label="Diagram showing ordinary Transformer inference and local equilibrium updates during training">
+        <div class="system-card" role="img" aria-label="Comparison of global backpropagation and local EPT-LM training on the same Transformer">
           <div class="card-topline">
-            <span><i class="live-dot"></i>Standard model</span>
-            <span>Training changes · inference does not</span>
+            <span><i class="live-dot"></i>Same Transformer</span>
+            <span>Two training interfaces</span>
           </div>
 
           <div class="model-flow">
             <div class="phase-heading">
-              <strong>Inference</strong>
-              <span>one forward pass</span>
+              <strong>The model</strong>
+              <span>inference is identical</span>
             </div>
             <div class="forward-row">
               <div class="flow-node">tokens</div>
@@ -1172,26 +1207,28 @@
 
           <div class="training-read">
             <div class="phase-heading">
-              <strong>Training</strong>
-              <span>local physical read</span>
+              <strong>What changes</strong>
+              <span>during training</span>
             </div>
             <div class="nudge-row">
               <div class="state">
-                <small>Free state</small>
-                <strong>model settles</strong>
+                <small>Backpropagation</small>
+                <strong>store → reverse</strong>
+                <p>One global activation tape</p>
               </div>
-              <div class="difference">Δ</div>
+              <div class="difference">or</div>
               <div class="state nudged">
-                <small>Nudged state</small>
-                <strong>target applied</strong>
+                <small>EPT-LM</small>
+                <strong>nudge → measure</strong>
+                <p>One local response per layer</p>
               </div>
             </div>
-            <div class="local-update">Each block updates from its own measured difference</div>
+            <div class="local-update">The deployed network is unchanged</div>
           </div>
 
           <p class="system-caption">
-            No backward activation tape through the stack. No separate inference architecture.
-            The same bidirectional operations map naturally onto analog matrix hardware.
+            Backprop reconstructs a global chain of derivatives in software. EPT-LM asks each
+            layer a local question: how did you move when the answer was nudged?
           </p>
         </div>
       </div>
@@ -1231,10 +1268,10 @@
               shuttle data between compute and memory.
             </p>
             <p>
-              Equilibrium Propagation offers a different interface. The hardware runs twice,
-              once freely and once with a weak target signal. The difference between those settled
-              states supplies a local learning signal. The device that performs inference can also
-              participate directly in training.
+              Equilibrium Propagation offers a different interface. Run the model, then tug its
+              answer slightly toward the target. Every layer moves in response, and that local
+              before-and-after change supplies its learning signal. The device that performs
+              inference can participate directly in training.
             </p>
             <p>
               Until now, the evidence stopped at vision-scale demonstrations. EPT-LM brings the
@@ -1256,45 +1293,43 @@
     <section class="section section-dark" id="approach">
       <div class="wrap">
         <p class="section-label">The approach</p>
-        <h2 class="section-heading">A local update for a standard Transformer.</h2>
+        <h2 class="section-heading">Two ways to train the same model.</h2>
         <p class="section-intro">
-          The free state is exactly the model’s forward activations. Training adds a weak loss
-          signal at the output, lets the layer states re-equilibrate, and reads each block locally.
-          Three operations make up the full step.
+          Backpropagation sends one instruction backward through the entire network. EPT-LM
+          perturbs the answer and lets every layer observe its own response. The inference graph,
+          model architecture, and output stay the same.
         </p>
 
-        <div class="method-grid">
+        <div class="method-grid comparison-grid">
           <article class="method-step">
-            <span class="step-number">01 / FORWARD</span>
-            <h3>Run the model normally.</h3>
+            <span class="step-number">BACKPROP / GLOBAL</span>
+            <h3>Replay the network backward.</h3>
             <p>
-              Tokens pass through distinct, standard Transformer blocks. This is both the free
-              equilibrium and the deployment-time inference path.
+              The forward pass stores the activations of every block. Training then revisits the
+              whole stack in reverse to assemble one coordinated gradient.
             </p>
+            <div class="method-sequence">
+              <span>store</span><i></i><span>reverse</span><i></i><span>update</span>
+            </div>
           </article>
           <article class="method-step">
-            <span class="step-number">02 / NUDGE</span>
-            <h3>Apply the target once.</h3>
+            <span class="step-number">EPT-LM / LOCAL</span>
+            <h3>Give the answer a small tug.</h3>
             <p>
-              A small output nudge propagates through the bidirectional training dynamics. A few
-              local relaxation sweeps produce the perturbed state.
+              Pull the next-token output slightly toward the correct answer. Each block measures
+              how its own activity changed and converts that response into a local weight update.
             </p>
-          </article>
-          <article class="method-step">
-            <span class="step-number">03 / READ</span>
-            <h3>Update each block locally.</h3>
-            <p>
-              Every weight update comes from the block’s own free-to-nudged difference. The
-              training rule does not store or traverse a global backward tape.
-            </p>
+            <div class="method-sequence">
+              <span>run</span><i></i><span>nudge</span><i></i><span>measure locally</span>
+            </div>
           </article>
         </div>
 
         <div class="method-note">
           <strong>Hardware fit</strong>
           <span>
-            Forward and transpose matrix reads, local state storage, and difference measurements
-            are native operations for bidirectional analog arrays.
+            Analog arrays already expose forward reads, transpose reads, and local electrical
+            responses. EPT-LM turns those physical operations into the training interface.
           </span>
         </div>
       </div>

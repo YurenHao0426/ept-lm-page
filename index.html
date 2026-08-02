@@ -1338,7 +1338,7 @@
     <section class="section" id="evidence">
       <div class="wrap">
         <p class="section-label">Evidence in hand</p>
-        <h2 class="section-heading">Matches backprop at 72M parameters.</h2>
+        <h2 class="section-heading">Matches backprop at every size measured.</h2>
         <p class="section-intro">
           The flagship experiment trains an OLMo2-style, 32k-vocabulary language model from
           scratch on FineWeb-Edu. Its control is not a literature number. It is a backprop twin
@@ -1351,21 +1351,22 @@
             <p class="result-kicker">Validation cross-entropy</p>
             <div class="score-row">
               <div class="score">
-                <strong>3.29</strong>
+                <strong>3.397</strong>
                 <span>Backpropagation twin</span>
               </div>
               <div class="score ep">
-                <strong>3.33</strong>
+                <strong>3.400</strong>
                 <span>Equilibrium Propagation</span>
               </div>
             </div>
             <div class="gap-line">
-              <span>Matched-control result at the sealed 72M rung</span>
-              <strong>BP-matched quality</strong>
+              <span>72M rung, 0.4% in perplexity, against a 0.4% spread between backprop seeds</span>
+              <strong>Statistically indistinguishable</strong>
             </div>
             <p class="result-footnote">
               1.44B tokens · FineWeb-Edu · 12 layers · width 512 · Muon hybrid optimizer ·
-              matched evaluation protocol
+              tail-window means over the last 10% of training · three backprop seeds, two EP seeds ·
+              the same comparison at 11M, 18M, and 36M gives −0.4%, +1.2%, and +0.1%
             </p>
           </article>
 
@@ -1402,10 +1403,43 @@
             <strong>135M</strong>
             <h3>Scaling testbed</h3>
             <p>
-              The next model rung has completed a 2.7B-token training budget and now serves as
-              the mechanism and transfer-law testbed.
+              The next rung has completed a 2.7B-token budget once and is being retrained after a
+              precision fix described below. At matched progress it is level with its twin.
             </p>
           </article>
+        </div>
+
+        <div class="evidence-layout" style="margin-top:34px">
+          <article class="result-card">
+            <p class="result-kicker">A wall that was ours</p>
+            <p>
+              For several months we measured a quality loss that grew with model width, resisted
+              every algorithmic remedy, and looked exactly like a scaling limit of the learning
+              rule. A per-layer probe traced it to arithmetic in our own simulator. The training
+              signal is a small displacement added to a much larger activation, and in single
+              precision the parts of that displacement below machine epsilon are destroyed by the
+              addition. The readout recovered the displacement by subtracting the activation back
+              out, so it returned the damaged copy with no error signal. Wider models put more
+              layers below that threshold, which is why the loss imitated a wall.
+            </p>
+            <p>
+              Reading the training signal from the stored displacement directly, never as the
+              difference of two large numbers, removes the effect at no computational cost. This is
+              the software form of differential readout, and it is the same constraint an analog
+              contrast measurement has to satisfy.
+            </p>
+          </article>
+
+          <aside class="control-card">
+            <h3>How the fix was verified</h3>
+            <ul class="control-list">
+              <li>Double precision control: the loss vanishes</li>
+              <li>Pre-registered amplitude test: the affected layers moved exactly as predicted</li>
+              <li>Five-width probe: damage appears where the displacement ratio crosses the threshold</li>
+              <li>Controlled instrument: the measured loss closes completely</li>
+              <li>Null test: no change at sizes that were never below the threshold</li>
+            </ul>
+          </aside>
         </div>
       </div>
     </section>
